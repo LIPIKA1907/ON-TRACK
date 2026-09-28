@@ -1,0 +1,116 @@
+{
+  "project": "OnTrack AI",
+  "sih_problem_statement": "SIH26103",
+  "training_records": 800,
+  "test_records": 200,
+  "numerical_features": [
+    "Approved_Cost",
+    "Planned_Duration",
+    "Elapsed_Duration",
+    "Physical_Progress",
+    "Planned_Progress",
+    "Financial_Progress",
+    "Expenditure",
+    "Milestones_Total",
+    "Milestones_Delayed",
+    "Average_Milestone_Delay_Days",
+    "Procurement_Delay_Days",
+    "Land_Acquisition_Progress",
+    "Approvals_Pending",
+    "Scope_Changes"
+  ],
+  "categorical_features": [
+    "Sector",
+    "Project_Type",
+    "Contractor_Performance"
+  ],
+  "risk_weights": {
+    "time": 0.4,
+    "cost": 0.35,
+    "impl": 0.25
+  },
+  "risk_thresholds": {
+    "low_max": 35.0,
+    "medium_max": 65.0
+  },
+  "models": {
+    "Time_Overrun_Flag": {
+      "display_name": "Time Overrun Risk",
+      "saved_file": "time_overrun_model.joblib",
+      "train_positive_count": 381,
+      "train_positive_pct": 47.62,
+      "test_positive_count": 95,
+      "test_positive_pct": 47.5,
+      "primary_model": "XGBoost",
+      "primary_metrics": {
+        "model_name": "XGBoost (Time Overrun Risk)",
+        "accuracy": 0.835,
+        "precision": 0.837,
+        "recall": 0.8105,
+        "f1_score": 0.8235,
+        "roc_auc": 0.9111
+      },
+      "baseline_model": "Random Forest",
+      "baseline_metrics": {
+        "model_name": "Random Forest (Time Overrun Risk)",
+        "accuracy": 0.83,
+        "precision": 0.8144,
+        "recall": 0.8316,
+        "f1_score": 0.8229,
+        "roc_auc": 0.9139
+      }
+    },
+    "Cost_Overrun_Flag": {
+      "display_name": "Cost Overrun Risk",
+      "saved_file": "cost_overrun_model.joblib",
+      "train_positive_count": 289,
+      "train_positive_pct": 36.12,
+      "test_positive_count": 74,
+      "test_positive_pct": 37.0,
+      "primary_model": "XGBoost",
+      "primary_metrics": {
+        "model_name": "XGBoost (Cost Overrun Risk)",
+        "accuracy": 0.865,
+        "precision": 0.873,
+        "recall": 0.7432,
+        "f1_score": 0.8029,
+        "roc_auc": 0.9229
+      },
+      "baseline_model": "Random Forest",
+      "baseline_metrics": {
+        "model_name": "Random Forest (Cost Overrun Risk)",
+        "accuracy": 0.84,
+        "precision": 0.8889,
+        "recall": 0.6486,
+        "f1_score": 0.75,
+        "roc_auc": 0.9313
+      }
+    },
+    "Implementation_Risk_Flag": {
+      "display_name": "Implementation Risk",
+      "saved_file": "implementation_risk_model.joblib",
+      "train_positive_count": 221,
+      "train_positive_pct": 27.62,
+      "test_positive_count": 52,
+      "test_positive_pct": 26.0,
+      "primary_model": "XGBoost",
+      "primary_metrics": {
+        "model_name": "XGBoost (Implementation Risk)",
+        "accuracy": 0.77,
+        "precision": 0.575,
+        "recall": 0.4423,
+        "f1_score": 0.5,
+        "roc_auc": 0.7885
+      },
+      "baseline_model": "Random Forest",
+      "baseline_metrics": {
+        "model_name": "Random Forest (Implementation Risk)",
+        "accuracy": 0.8,
+        "precision": 0.6667,
+        "recall": 0.4615,
+        "f1_score": 0.5455,
+        "roc_auc": 0.8034
+      }
+    }
+  }
+}
