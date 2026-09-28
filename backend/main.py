@@ -14,7 +14,7 @@ from ml.recommendations import generate_recommendations
 from ml.early_warning import generate_early_warning
 
 app = FastAPI(title="OnTrack AI API", description="AI-powered infrastructure project monitoring and risk analysis", version="1.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173" "https://ontrack-ai-kappa.vercel.app",], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "https://ontrack-ai-kappa.vercel.app",], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 class ProjectRequest(BaseModel):
     project: Dict[str, Any]
