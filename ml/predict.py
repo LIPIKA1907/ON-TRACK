@@ -101,8 +101,18 @@ def load_model_artifacts(models_dir: str = None) -> dict:
                 f"Please run 'ml/train_models.py' first."
             )
 
+    preprocessor = joblib.load(preprocessor_path)
+    # Ensure backwards compatibility for SimpleImputer if unpickled in newer scikit-learn
+    for _, trans, _ in getattr(preprocessor, "transformers_", []):
+        if hasattr(trans, "named_steps"):
+            for step in trans.named_steps.values():
+                if hasattr(step, "_fit_dtype") and not hasattr(step, "_fill_dtype"):
+                    step._fill_dtype = step._fit_dtype
+        elif hasattr(trans, "_fit_dtype") and not hasattr(trans, "_fill_dtype"):
+            trans._fill_dtype = trans._fit_dtype
+
     artifacts = {
-        "preprocessor": joblib.load(preprocessor_path),
+        "preprocessor": preprocessor,
         "time_model": joblib.load(time_model_path),
         "cost_model": joblib.load(cost_model_path),
         "impl_model": joblib.load(impl_model_path),

@@ -208,11 +208,18 @@ def simulate_what_if(
             "feature_key": feat_key,
             "original_value": orig_val,
             "scenario_value": cleaned_value,
-            "delta": delta_val,
+            "delta": delta_val
         })
-
         scenario_dict[feat_key] = cleaned_value
 
+    # Recompute derived features
+    if "Expenditure" in modifications and "Approved_Cost" in scenario_dict and scenario_dict["Approved_Cost"] > 0:
+        scenario_dict["Financial_Progress"] = round((scenario_dict["Expenditure"] / scenario_dict["Approved_Cost"]) * 100, 2)
+    elif "Financial_Progress" in modifications and "Approved_Cost" in scenario_dict and scenario_dict["Approved_Cost"] > 0:
+        scenario_dict["Expenditure"] = round((scenario_dict["Financial_Progress"] / 100) * scenario_dict["Approved_Cost"], 2)
+    
+    if "Elapsed_Duration" in modifications and "Planned_Duration" in scenario_dict and scenario_dict["Planned_Duration"] > 0:
+        scenario_dict["Time_Elapsed"] = round((scenario_dict["Elapsed_Duration"] / scenario_dict["Planned_Duration"]) * 100, 2)
     # 3. Run Scenario Prediction through real model (NO hardcoded formula)
     scenario_pred = predict_project_risk(scenario_dict)
 

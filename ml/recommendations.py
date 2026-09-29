@@ -26,9 +26,7 @@ def generate_recommendations(
 
     recommendations = []
 
-    # ---------------------------------------------------------
     # Helper function
-    # ---------------------------------------------------------
     def add_recommendation(priority, issue, recommendation):
         recommendations.append({
             "priority": priority,
@@ -36,39 +34,77 @@ def generate_recommendations(
             "recommendation": recommendation
         })
 
-    # ---------------------------------------------------------
-    # 1. Procurement delay
-    # ---------------------------------------------------------
-    procurement_delay = float(
-        project_record.get("Procurement_Delay_Days", 0) or 0
-    )
-
-    if procurement_delay >= 60:
-        add_recommendation(
-            "High",
-            "High procurement delay",
-            "Review procurement timelines and identify delayed procurement activities."
-        )
-    elif procurement_delay >= 30:
-        add_recommendation(
-            "Medium",
-            "Moderate procurement delay",
-            "Monitor procurement activities and address pending procurement bottlenecks."
-        )
+    def _get_valid_val(key: str) -> Any:
+        v = project_record.get(key)
+        if v is None or v == "":
+            return None
+        try:
+            fv = float(v)
+            if fv != fv:  # check for NaN
+                return None
+            return fv
+        except (ValueError, TypeError):
+            return None
 
     # ---------------------------------------------------------
-    # 2. Milestone delays
+    # 1. Schedule & Cost Overruns (from official/derived data)
     # ---------------------------------------------------------
-    milestones_total = float(
-        project_record.get("Milestones_Total", 0) or 0
-    )
-    milestones_delayed = float(
-        project_record.get("Milestones_Delayed", 0) or 0
-    )
+    time_overrun = _get_valid_val("Time_Overrun_Months")
+    if time_overrun is not None:
+        if time_overrun >= 12:
+            add_recommendation(
+                "High",
+                f"Severe schedule delay ({int(time_overrun)} months overrun)",
+                "Convene an empowered inter-ministerial review meeting to establish an expedited completion plan and identify critical path hindrances."
+            )
+        elif time_overrun >= 3:
+            add_recommendation(
+                "Medium",
+                f"Project delayed by {int(time_overrun)} months",
+                "Conduct joint progress review with executing agency to address schedule slippage against original sanction date."
+            )
 
-    if milestones_total > 0:
+    cost_overrun = _get_valid_val("Cost_Overrun_Pct")
+    if cost_overrun is not None:
+        if cost_overrun >= 10:
+            add_recommendation(
+                "High",
+                f"High cost overrun ({cost_overrun:.1f}% escalation)",
+                "Submit Revised Cost Estimate (RCE) for administrative approval and conduct expenditure audit on high-variance work packages."
+            )
+        elif cost_overrun >= 5:
+            add_recommendation(
+                "Medium",
+                f"Cost overrun detected ({cost_overrun:.1f}% escalation)",
+                "Institute stricter monthly financial burn audits with the project authority to curb further budget escalation."
+            )
+
+    # ---------------------------------------------------------
+    # 2. Procurement delay (evaluated only when tracked)
+    # ---------------------------------------------------------
+    procurement_delay = _get_valid_val("Procurement_Delay_Days")
+    if procurement_delay is not None:
+        if procurement_delay >= 60:
+            add_recommendation(
+                "High",
+                "High procurement delay",
+                "Review procurement timelines and identify delayed procurement activities."
+            )
+        elif procurement_delay >= 30:
+            add_recommendation(
+                "Medium",
+                "Moderate procurement delay",
+                "Monitor procurement activities and address pending procurement bottlenecks."
+            )
+
+    # ---------------------------------------------------------
+    # 3. Milestone delays (evaluated only when tracked)
+    # ---------------------------------------------------------
+    milestones_total = _get_valid_val("Milestones_Total")
+    milestones_delayed = _get_valid_val("Milestones_Delayed")
+
+    if milestones_total is not None and milestones_total > 0 and milestones_delayed is not None:
         delayed_ratio = milestones_delayed / milestones_total
-
         if delayed_ratio >= 0.50:
             add_recommendation(
                 "High",
@@ -83,138 +119,125 @@ def generate_recommendations(
             )
 
     # ---------------------------------------------------------
-    # 3. Average milestone delay
+    # 4. Average milestone delay (evaluated only when tracked)
     # ---------------------------------------------------------
-    avg_milestone_delay = float(
-        project_record.get("Average_Milestone_Delay_Days", 0) or 0
-    )
-
-    if avg_milestone_delay >= 60:
-        add_recommendation(
-            "High",
-            "High average milestone delay",
-            "Review the causes of prolonged milestone delays and establish corrective actions."
-        )
-    elif avg_milestone_delay >= 30:
-        add_recommendation(
-            "Medium",
-            "Moderate milestone delay",
-            "Track delayed activities and establish milestone-level recovery targets."
-        )
+    avg_milestone_delay = _get_valid_val("Average_Milestone_Delay_Days")
+    if avg_milestone_delay is not None:
+        if avg_milestone_delay >= 60:
+            add_recommendation(
+                "High",
+                "High average milestone delay",
+                "Review the causes of prolonged milestone delays and establish corrective actions."
+            )
+        elif avg_milestone_delay >= 30:
+            add_recommendation(
+                "Medium",
+                "Moderate milestone delay",
+                "Track delayed activities and establish milestone-level recovery targets."
+            )
 
     # ---------------------------------------------------------
-    # 4. Physical progress vs planned progress
+    # 5. Physical progress vs planned progress
     # ---------------------------------------------------------
-    physical_progress = float(
-        project_record.get("Physical_Progress", 0) or 0
-    )
-    planned_progress = float(
-        project_record.get("Planned_Progress", 0) or 0
-    )
+    physical_progress = _get_valid_val("Physical_Progress")
+    planned_progress = _get_valid_val("Planned_Progress")
 
-    progress_gap = planned_progress - physical_progress
-
-    if progress_gap >= 20:
-        add_recommendation(
-            "High",
-            "Physical progress is significantly below planned progress",
-            "Review the causes of schedule slippage and prioritize recovery of critical activities."
-        )
-    elif progress_gap >= 10:
-        add_recommendation(
-            "Medium",
-            "Physical progress is below planned progress",
-            "Monitor project progress against the baseline and address activities contributing to the gap."
-        )
+    if physical_progress is not None and planned_progress is not None:
+        progress_gap = planned_progress - physical_progress
+        if progress_gap >= 20:
+            add_recommendation(
+                "High",
+                "Physical progress is significantly below planned progress",
+                "Review the causes of schedule slippage and prioritize recovery of critical activities."
+            )
+        elif progress_gap >= 10:
+            add_recommendation(
+                "Medium",
+                "Physical progress is below planned progress",
+                "Monitor project progress against the baseline and address activities contributing to the gap."
+            )
 
     # ---------------------------------------------------------
-    # 5. Pending approvals
+    # 6. Pending approvals (evaluated only when tracked)
     # ---------------------------------------------------------
-    approvals_pending = float(
-        project_record.get("Approvals_Pending", 0) or 0
-    )
-
-    if approvals_pending >= 5:
-        add_recommendation(
-            "High",
-            "Several approvals are pending",
-            "Prioritize pending approvals and track responsible stakeholders and expected resolution dates."
-        )
-    elif approvals_pending >= 2:
-        add_recommendation(
-            "Medium",
-            "Pending approvals may affect implementation",
-            "Monitor pending approvals and identify those that could affect project timelines."
-        )
+    approvals_pending = _get_valid_val("Approvals_Pending")
+    if approvals_pending is not None:
+        if approvals_pending >= 5:
+            add_recommendation(
+                "High",
+                "Several approvals are pending",
+                "Prioritize pending approvals and track responsible stakeholders and expected resolution dates."
+            )
+        elif approvals_pending >= 2:
+            add_recommendation(
+                "Medium",
+                "Pending approvals may affect implementation",
+                "Monitor pending approvals and identify those that could affect project timelines."
+            )
 
     # ---------------------------------------------------------
-    # 6. Land acquisition
+    # 7. Land acquisition (evaluated only when tracked)
     # ---------------------------------------------------------
-    land_progress = float(
-        project_record.get("Land_Acquisition_Progress", 100) or 0
-    )
-
-    if land_progress < 40:
-        add_recommendation(
-            "High",
-            "Land acquisition progress is low",
-            "Review unresolved land acquisition dependencies and prioritize cases affecting project activities."
-        )
-    elif land_progress < 70:
-        add_recommendation(
-            "Medium",
-            "Land acquisition is incomplete",
-            "Monitor pending land acquisition activities and their impact on project execution."
-        )
+    land_progress = _get_valid_val("Land_Acquisition_Progress")
+    if land_progress is not None:
+        if land_progress < 40:
+            add_recommendation(
+                "High",
+                "Land acquisition progress is low",
+                "Review unresolved land acquisition dependencies and prioritize cases affecting project activities."
+            )
+        elif land_progress < 70:
+            add_recommendation(
+                "Medium",
+                "Land acquisition is incomplete",
+                "Monitor pending land acquisition activities and their impact on project execution."
+            )
 
     # ---------------------------------------------------------
-    # 7. Scope changes
+    # 8. Scope changes (evaluated only when tracked)
     # ---------------------------------------------------------
-    scope_changes = float(
-        project_record.get("Scope_Changes", 0) or 0
-    )
-
-    if scope_changes >= 5:
-        add_recommendation(
-            "High",
-            "Frequent scope changes",
-            "Review scope changes and assess their potential impact on project cost and schedule."
-        )
-    elif scope_changes >= 3:
-        add_recommendation(
-            "Medium",
-            "Multiple scope changes",
-            "Monitor scope changes and evaluate their effect on the approved project baseline."
-        )
+    scope_changes = _get_valid_val("Scope_Changes")
+    if scope_changes is not None:
+        if scope_changes >= 5:
+            add_recommendation(
+                "High",
+                "Frequent scope changes",
+                "Review scope changes and assess their potential impact on project cost and schedule."
+            )
+        elif scope_changes >= 3:
+            add_recommendation(
+                "Medium",
+                "Multiple scope changes",
+                "Monitor scope changes and evaluate their effect on the approved project baseline."
+            )
 
     # ---------------------------------------------------------
-    # 8. Contractor performance
+    # 9. Contractor performance (evaluated only when tracked)
     # ---------------------------------------------------------
-    contractor = str(
-        project_record.get("Contractor_Performance", "")
-    ).strip().lower()
-
-    if contractor in {
-        "poor",
-        "low",
-        "weak",
-        "below average",
-        "unsatisfactory"
-    }:
-        add_recommendation(
-            "High",
-            "Low contractor performance",
-            "Review contractor performance and establish corrective actions for delayed or incomplete activities."
-        )
-    elif contractor in {
-        "average",
-        "moderate"
-    }:
-        add_recommendation(
-            "Medium",
-            "Moderate contractor performance",
-            "Monitor contractor delivery against planned milestones and contractual commitments."
-        )
+    contractor_raw = project_record.get("Contractor_Performance")
+    if contractor_raw:
+        contractor = str(contractor_raw).strip().lower()
+        if contractor in {
+            "poor",
+            "low",
+            "weak",
+            "below average",
+            "unsatisfactory"
+        }:
+            add_recommendation(
+                "High",
+                "Low contractor performance",
+                "Review contractor performance and establish corrective actions for delayed or incomplete activities."
+            )
+        elif contractor in {
+            "average",
+            "moderate"
+        }:
+            add_recommendation(
+                "Medium",
+                "Moderate contractor performance",
+                "Monitor contractor delivery against planned milestones and contractual commitments."
+            )
 
     # ---------------------------------------------------------
     # 9. Overall risk

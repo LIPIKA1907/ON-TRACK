@@ -67,124 +67,108 @@ def generate_early_warning(
 
     warnings: List[str] = []
 
+    # Helper to check if a field has a valid, non-null value
+    def _get_valid_val(key: str) -> Any:
+        v = project_record.get(key)
+        if v is None or v == "":
+            return None
+        try:
+            fv = float(v)
+            if fv != fv:  # check for NaN
+                return None
+            return fv
+        except (ValueError, TypeError):
+            return None
+
     # ---------------------------------------------------------
     # 1. Physical progress gap
     # ---------------------------------------------------------
-    physical_progress = float(
-        project_record.get("Physical_Progress", 0) or 0
-    )
-    planned_progress = float(
-        project_record.get("Planned_Progress", 0) or 0
-    )
+    physical_progress = _get_valid_val("Physical_Progress")
+    planned_progress = _get_valid_val("Planned_Progress")
 
-    progress_gap = planned_progress - physical_progress
-
-    if progress_gap >= 20:
-        warnings.append(
-            "Physical progress is significantly below planned progress."
-        )
-    elif progress_gap >= 10:
-        warnings.append(
-            "Physical progress is below planned progress."
-        )
+    if physical_progress is not None and planned_progress is not None:
+        progress_gap = planned_progress - physical_progress
+        if progress_gap >= 20:
+            warnings.append("Physical progress is significantly below planned progress.")
+        elif progress_gap >= 10:
+            warnings.append("Physical progress is below planned progress.")
 
     # ---------------------------------------------------------
-    # 2. Milestone delays
+    # 2. Schedule & Cost Overruns (from official/derived data)
     # ---------------------------------------------------------
-    milestones_total = float(
-        project_record.get("Milestones_Total", 0) or 0
-    )
-    milestones_delayed = float(
-        project_record.get("Milestones_Delayed", 0) or 0
-    )
+    time_overrun = _get_valid_val("Time_Overrun_Months")
+    if time_overrun is not None:
+        if time_overrun >= 12:
+            warnings.append(f"Significant schedule delay of {int(time_overrun)} months beyond original completion date.")
+        elif time_overrun >= 3:
+            warnings.append(f"Schedule slippage of {int(time_overrun)} months detected.")
 
-    if milestones_total > 0:
+    cost_overrun = _get_valid_val("Cost_Overrun_Pct")
+    if cost_overrun is not None:
+        if cost_overrun >= 10:
+            warnings.append(f"High cost escalation: {cost_overrun:.1f}% above approved sanction budget.")
+        elif cost_overrun >= 5:
+            warnings.append(f"Cost escalation: {cost_overrun:.1f}% above approved sanction budget.")
+
+    # ---------------------------------------------------------
+    # 3. Milestone delays (evaluated only when tracked)
+    # ---------------------------------------------------------
+    milestones_total = _get_valid_val("Milestones_Total")
+    milestones_delayed = _get_valid_val("Milestones_Delayed")
+
+    if milestones_total is not None and milestones_total > 0 and milestones_delayed is not None:
         delayed_ratio = milestones_delayed / milestones_total
-
         if delayed_ratio >= 0.50:
-            warnings.append(
-                "A significant proportion of project milestones are delayed."
-            )
+            warnings.append("A significant proportion of project milestones are delayed.")
         elif delayed_ratio >= 0.25:
-            warnings.append(
-                "Multiple project milestones are delayed."
-            )
+            warnings.append("Multiple project milestones are delayed.")
 
     # ---------------------------------------------------------
-    # 3. Procurement delay
+    # 4. Procurement delay (evaluated only when tracked)
     # ---------------------------------------------------------
-    procurement_delay = float(
-        project_record.get("Procurement_Delay_Days", 0) or 0
-    )
-
-    if procurement_delay >= 60:
-        warnings.append(
-            "Procurement delay is high."
-        )
-    elif procurement_delay >= 30:
-        warnings.append(
-            "Procurement activities are experiencing delays."
-        )
+    procurement_delay = _get_valid_val("Procurement_Delay_Days")
+    if procurement_delay is not None:
+        if procurement_delay >= 60:
+            warnings.append("Procurement delay is high.")
+        elif procurement_delay >= 30:
+            warnings.append("Procurement activities are experiencing delays.")
 
     # ---------------------------------------------------------
-    # 4. Pending approvals
+    # 5. Pending approvals (evaluated only when tracked)
     # ---------------------------------------------------------
-    approvals_pending = float(
-        project_record.get("Approvals_Pending", 0) or 0
-    )
-
-    if approvals_pending >= 5:
-        warnings.append(
-            "Several project approvals are pending."
-        )
-    elif approvals_pending >= 2:
-        warnings.append(
-            "Pending approvals may affect project implementation."
-        )
+    approvals_pending = _get_valid_val("Approvals_Pending")
+    if approvals_pending is not None:
+        if approvals_pending >= 5:
+            warnings.append("Several project approvals are pending.")
+        elif approvals_pending >= 2:
+            warnings.append("Pending approvals may affect project implementation.")
 
     # ---------------------------------------------------------
-    # 5. Land acquisition
+    # 6. Land acquisition (evaluated only when tracked)
     # ---------------------------------------------------------
-    land_progress = float(
-        project_record.get("Land_Acquisition_Progress", 100) or 0
-    )
-
-    if land_progress < 40:
-        warnings.append(
-            "Land acquisition progress is low."
-        )
-    elif land_progress < 70:
-        warnings.append(
-            "Land acquisition is incomplete."
-        )
+    land_progress = _get_valid_val("Land_Acquisition_Progress")
+    if land_progress is not None:
+        if land_progress < 40:
+            warnings.append("Land acquisition progress is low.")
+        elif land_progress < 70:
+            warnings.append("Land acquisition is incomplete.")
 
     # ---------------------------------------------------------
-    # 6. Scope changes
+    # 7. Scope changes (evaluated only when tracked)
     # ---------------------------------------------------------
-    scope_changes = float(
-        project_record.get("Scope_Changes", 0) or 0
-    )
-
-    if scope_changes >= 5:
-        warnings.append(
-            "Frequent scope changes may affect the project baseline."
-        )
-    elif scope_changes >= 3:
-        warnings.append(
-            "Multiple scope changes have been recorded."
-        )
+    scope_changes = _get_valid_val("Scope_Changes")
+    if scope_changes is not None:
+        if scope_changes >= 5:
+            warnings.append("Frequent scope changes may affect the project baseline.")
+        elif scope_changes >= 3:
+            warnings.append("Multiple scope changes have been recorded.")
 
     # ---------------------------------------------------------
-    # 7. Average milestone delay
+    # 8. Average milestone delay (evaluated only when tracked)
     # ---------------------------------------------------------
-    avg_delay = float(
-        project_record.get("Average_Milestone_Delay_Days", 0) or 0
-    )
-
-    if avg_delay >= 60:
-        warnings.append(
-            "Average milestone delay is high."
-        )
+    avg_delay = _get_valid_val("Average_Milestone_Delay_Days")
+    if avg_delay is not None and avg_delay >= 60:
+        warnings.append("Average milestone delay is high.")
 
     # ---------------------------------------------------------
     # Limit warnings for a clean dashboard

@@ -144,6 +144,15 @@ def load_explainability_artifacts(models_dir: Optional[str] = None) -> Dict[str,
         raise FileNotFoundError(f"Preprocessor artifact not found at: {os.path.abspath(preprocessor_path)}")
 
     preprocessor = joblib.load(preprocessor_path)
+    # Ensure backwards compatibility for SimpleImputer if unpickled in newer scikit-learn
+    for _, trans, _ in getattr(preprocessor, "transformers_", []):
+        if hasattr(trans, "named_steps"):
+            for step in trans.named_steps.values():
+                if hasattr(step, "_fit_dtype") and not hasattr(step, "_fill_dtype"):
+                    step._fill_dtype = step._fit_dtype
+        elif hasattr(trans, "_fit_dtype") and not hasattr(trans, "_fill_dtype"):
+            trans._fill_dtype = trans._fit_dtype
+
     feature_names_out = list(preprocessor.get_feature_names_out())
 
     models = {}
@@ -254,9 +263,30 @@ def explain_project_risk(
     margin = float(model.predict(X_proc, output_margin=True)[0])
 
     # 2. TreeSHAP computation
-    shap_explanation = explainer(X_proc)
-    shap_vals = shap_explanation.values[0]  # array of length 31 (transformed columns)
-    base_val = float(explainer.expected_value)
+    try:
+        shap_explanation = explainer(X_proc)
+        shap_vals = shap_explanation.values[0]  # array of length 31 (transformed columns)
+        base_val = float(explainer.expected_value)
+    except Exception as e:
+        return {
+            "risk_dimension": DIMENSION_METADATA[risk_key]["title"],
+            "risk_probability": round(prob, 4),
+            "model_margin": round(margin, 4),
+            "base_value": 0.0,
+            "top_risk_factors": [],
+            "protective_factors": [],
+            "all_feature_contributions": [],
+            "mathematical_verification": {
+                "base_value": 0.0,
+                "sum_shap_values": 0.0,
+                "reconstructed_margin": round(margin, 4),
+                "actual_model_margin": round(margin, 4),
+                "margin_difference": 0.0,
+                "verified_consistent": False,
+            },
+            "fallback": True,
+            "fallback_reason": f"Detailed SHAP local explanation fallback: {str(e)}",
+        }
 
     # 3. Aggregate 31 one-hot features back to the 17 primary input features
     aggregated_contributions = {}
@@ -354,9 +384,22 @@ def explain_all_risks(
     probs = {}
 
     for dim_key in ["time", "cost", "impl"]:
-        exp = explain_project_risk(df_record, risk_type=dim_key, top_n=top_n, models_dir=models_dir)
+        try:
+            exp = explain_project_risk(df_record, risk_type=dim_key, top_n=top_n, models_dir=models_dir)
+        except Exception as e:
+            exp = {
+                "risk_dimension": DIMENSION_METADATA.get(dim_key, {}).get("title", dim_key),
+                "risk_probability": 0.5,
+                "model_margin": 0.0,
+                "base_value": 0.0,
+                "top_risk_factors": [],
+                "protective_factors": [],
+                "all_feature_contributions": [],
+                "fallback": True,
+                "fallback_reason": str(e),
+            }
         explanations[dim_key] = exp
-        probs[dim_key] = exp["risk_probability"]
+        probs[dim_key] = exp.get("risk_probability", 0.5)
 
     overall_score, risk_level = calculate_overall_risk(
         probs["time"], probs["cost"], probs["impl"]

@@ -39,31 +39,37 @@ except ImportError:
     # If running directly inside ml directory
     from predict import predict_project_risk, load_model_artifacts, NUMERICAL_FEATURES, ALL_INPUT_FEATURES
 
-# In-memory cache for projects dataset and precomputed risk scores
+# In-memory cache for projects datasets and precomputed risk scores
 _BENCHMARK_CACHE = {
-    "df": None,
-    "scores_computed": False,
+    "sih": None,
 }
 
-SYNTHETIC_DATASET_DISCLOSURE = (
-    "Benchmark metrics are derived strictly from the available synthetic dataset "
-    "(data/projects.csv, N=1,000 projects) created for prototype demonstration. "
-    "Values represent factual statistical peer distributions and must be recalibrated "
-    "against verified government project databases before real-world deployment."
+
+PAIMANA_DATASET_DISCLOSURE = (
+    "Benchmark metrics are derived from the official MoSPI PAIMANA Central Sector Projects dataset "
+    "(data/paimana/paimana_normalized.csv, N=1,731 projects, August 2026 snapshot). "
+    "Comparisons reflect factual peer distributions across similar sectors and scale."
 )
 
 
 def load_benchmark_dataset(data_path: Optional[str] = None) -> pd.DataFrame:
     """
     Loads and caches the projects dataset with precomputed risk scores for fast benchmarking.
+    Supports official MoSPI PAIMANA data.
     """
     global _BENCHMARK_CACHE
-    if _BENCHMARK_CACHE["df"] is not None:
-        return _BENCHMARK_CACHE["df"]
+    cache_key = "sih"
+    
+    if _BENCHMARK_CACHE.get(cache_key) is not None:
+        return _BENCHMARK_CACHE[cache_key]
 
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     if data_path is None:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        data_path = os.path.join(script_dir, "..", "data", "projects.csv")
+        data_path = os.path.join(script_dir, "..", "data", "paimana", "paimana_normalized.csv")
+        if not os.path.exists(data_path):
+            raise FileNotFoundError(
+                f"Official MoSPI PAIMANA dataset not found at: {os.path.abspath(data_path)}. "
+            )
 
     if not os.path.exists(data_path):
         raise FileNotFoundError(f"Projects dataset not found at: {os.path.abspath(data_path)}")
@@ -97,8 +103,7 @@ def load_benchmark_dataset(data_path: Optional[str] = None) -> pd.DataFrame:
         # Fallback if model loading fails
         df["_precomputed_overall_risk"] = np.nan
 
-    _BENCHMARK_CACHE["df"] = df
-    _BENCHMARK_CACHE["scores_computed"] = True
+    _BENCHMARK_CACHE[cache_key] = df
     return df
 
 
@@ -186,29 +191,15 @@ def _filter_comparable_peers(
 
 
 def benchmark_project(
-    project_record: Union[Dict[str, Any], pd.Series, pd.DataFrame],
+    project_record: Any,
     data_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Compares a selected project against similar projects in projects.csv.
+    Compares a selected project against similar projects in paimana_normalized.csv.
 
     Accepts:
         project_record: dict, Series, or single-row DataFrame.
-        data_path: optional custom path to projects.csv.
-
-    Returns:
-        Structured dictionary with peer averages and factual comparisons:
-        {
-            "project_id": "...",
-            "comparable_project_count": int,
-            "similarity_criteria": { ... },
-            "metrics": {
-                "physical_progress": { "project": ..., "peer_average": ..., "difference": ... },
-                ...
-            },
-            "peer_risk_distribution": { "low": ..., "medium": ..., "high": ... },
-            "dataset_notice": "..."
-        }
+        data_path: optional custom path to CSV.
     """
     if isinstance(project_record, pd.DataFrame):
         record_dict = project_record.iloc[0].to_dict()
@@ -259,6 +250,12 @@ def benchmark_project(
         "financial_progress": _compute_metric_stat(
             "Financial_Progress", record_dict.get("Financial_Progress")
         ),
+        "time_overrun_months": _compute_metric_stat(
+            "Time_Overrun_Months", record_dict.get("Time_Overrun_Months")
+        ),
+        "cost_overrun_pct": _compute_metric_stat(
+            "Cost_Overrun_Pct", record_dict.get("Cost_Overrun_Pct")
+        ),
         "procurement_delay_days": _compute_metric_stat(
             "Procurement_Delay_Days", record_dict.get("Procurement_Delay_Days")
         ),
@@ -305,15 +302,18 @@ def benchmark_project(
     else:
         peer_risk_dist = None
 
+    dataset_notice = PAIMANA_DATASET_DISCLOSURE
+
     return {
         "project_id": record_dict.get("Project_ID", "UNKNOWN"),
+        "source": "sih",
         "sector": record_dict.get("Sector", "UNKNOWN"),
         "project_type": record_dict.get("Project_Type", "UNKNOWN"),
         "comparable_project_count": int(len(peers)),
         "similarity_criteria": criteria,
         "metrics": metrics,
         "peer_risk_distribution": peer_risk_dist,
-        "dataset_notice": SYNTHETIC_DATASET_DISCLOSURE,
+        "dataset_notice": dataset_notice,
     }
 
 

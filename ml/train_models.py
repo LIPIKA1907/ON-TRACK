@@ -372,7 +372,8 @@ def train_and_evaluate_all():
         script_dir,
         "..",
         "data",
-        "projects.csv"
+        "paimana",
+        "paimana_normalized.csv"
     )
 
     models_dir = os.path.join(
