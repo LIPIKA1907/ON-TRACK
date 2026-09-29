@@ -961,9 +961,32 @@ function App() {
     <aside className="sidebar"><div className="brand"><div className="brand-icon">SIH</div><div><h2>OnTrack AI</h2><span>Team Kratarthaka</span></div></div><nav className="navigation">{NAV_ITEMS.map(item => <button key={item.id} className={`nav-item ${activeView === item.id ? "active" : ""}`} onClick={() => goTo(item.id)}><span>{item.icon}</span>{item.label}</button>)}</nav><div className="sidebar-footer"><span className="status-dot" />AI Monitoring Active</div></aside>
     <main className="main-content">
 
-      {error && <div className="prototype-notice"><strong>Notice:</strong> {error}</div>}
-      <ActivePage />
-      <div className="prototype-notice"><strong>Data note:</strong> This prototype uses representative synthetic project data. Results should be recalibrated using verified government project data before real-world deployment.</div>
+      {loading ? (
+        <div className="loading-screen">
+          <div className="loading-spinner"></div>
+          <h2>Connecting to OnTrack AI...</h2>
+          <p>
+            The AI service is waking up. Please wait a few seconds while
+            project intelligence is loaded.
+          </p>
+        </div>
+      ) : (
+        <>
+          {error && (
+            <div className="prototype-notice">
+              <strong>Notice:</strong> {error}
+            </div>
+          )}
+
+          <ActivePage />
+
+          <div className="prototype-notice">
+            <strong>Data note:</strong> This prototype uses representative
+            synthetic project data with parameters referenced from the "PAIMAANA April 2026 report". Results should be recalibrated using
+            verified government project data before real-world deployment.
+          </div>
+        </>
+      )}
     </main>
   </div>;
 }

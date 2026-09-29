@@ -79,7 +79,6 @@ Thumbs.db
 # Large Models & Generated Artifacts
 # Allow committed small metadata, ignore large binary checkpoints if needed
 *.pkl
-*.joblib
 *.onnx
 *.h5
 *.pt
