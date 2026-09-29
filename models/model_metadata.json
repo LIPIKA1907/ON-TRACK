@@ -33,6 +33,22 @@
     "low_max": 35.0,
     "medium_max": 65.0
   },
+  "monotonic_constraints": {
+    "Approved_Cost": 0,
+    "Planned_Duration": 0,
+    "Elapsed_Duration": 0,
+    "Physical_Progress": -1,
+    "Planned_Progress": -1,
+    "Financial_Progress": 0,
+    "Expenditure": 0,
+    "Milestones_Total": 0,
+    "Milestones_Delayed": 1,
+    "Average_Milestone_Delay_Days": 1,
+    "Procurement_Delay_Days": 1,
+    "Land_Acquisition_Progress": -1,
+    "Approvals_Pending": 1,
+    "Scope_Changes": 1
+  },
   "models": {
     "Time_Overrun_Flag": {
       "display_name": "Time Overrun Risk",
@@ -44,11 +60,11 @@
       "primary_model": "XGBoost",
       "primary_metrics": {
         "model_name": "XGBoost (Time Overrun Risk)",
-        "accuracy": 0.835,
-        "precision": 0.837,
-        "recall": 0.8105,
-        "f1_score": 0.8235,
-        "roc_auc": 0.9111
+        "accuracy": 0.81,
+        "precision": 0.7879,
+        "recall": 0.8211,
+        "f1_score": 0.8041,
+        "roc_auc": 0.9035
       },
       "baseline_model": "Random Forest",
       "baseline_metrics": {
@@ -70,11 +86,11 @@
       "primary_model": "XGBoost",
       "primary_metrics": {
         "model_name": "XGBoost (Cost Overrun Risk)",
-        "accuracy": 0.865,
-        "precision": 0.873,
-        "recall": 0.7432,
-        "f1_score": 0.8029,
-        "roc_auc": 0.9229
+        "accuracy": 0.875,
+        "precision": 0.8769,
+        "recall": 0.7703,
+        "f1_score": 0.8201,
+        "roc_auc": 0.938
       },
       "baseline_model": "Random Forest",
       "baseline_metrics": {
@@ -96,11 +112,11 @@
       "primary_model": "XGBoost",
       "primary_metrics": {
         "model_name": "XGBoost (Implementation Risk)",
-        "accuracy": 0.77,
-        "precision": 0.575,
-        "recall": 0.4423,
-        "f1_score": 0.5,
-        "roc_auc": 0.7885
+        "accuracy": 0.79,
+        "precision": 0.6136,
+        "recall": 0.5192,
+        "f1_score": 0.5625,
+        "roc_auc": 0.7999
       },
       "baseline_model": "Random Forest",
       "baseline_metrics": {
