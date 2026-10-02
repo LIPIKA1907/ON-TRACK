@@ -119,7 +119,7 @@ def health_check():
         "service": "OnTrack AI API",
         "paimana_status": "CONNECTED" if paimana_avail else "REQUIRES DATA FILE",
         "paimana_available": paimana_avail,
-        "llm_status": "CONNECTED" if llm["ollama_running"] else "OFFLINE",
+        "llm_status": "CONNECTED" if llm["llm_available"] else "OFFLINE",
         "llm_model": llm.get("active_model"),
     }
 
@@ -246,14 +246,14 @@ def root():
     return {
         "message": "OnTrack AI API is running",
         "paimana_status": "CONNECTED" if paimana_service.is_available() else "REQUIRES DATA FILE",
-        "llm_status": "CONNECTED" if llm["ollama_running"] else "OFFLINE",
+        "llm_status": "CONNECTED" if llm["llm_available"] else "OFFLINE",
         "llm_model": llm.get("active_model"),
         "docs": "/docs",
     }
 
 @app.get("/llm-status")
 def llm_status():
-    """Check local LLM (Ollama) availability and loaded models."""
+    """Check LLM (xAI Grok) availability and loaded models."""
     status = get_llm_status()
     return {
         "success": True,

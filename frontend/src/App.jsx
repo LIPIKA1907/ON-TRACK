@@ -264,8 +264,8 @@ function App() {
         // Fetch LLM Status and Risk Summary asynchronously without blocking the UI
         fetchJSON(`${API_BASE}/llm-status`)
           .then(status => {
-            setLlmStatus({ available: status.ollama_running, model: status.active_model });
-            if (status.ollama_running) {
+            setLlmStatus({ available: status.llm_available, model: status.active_model });
+            if (status.llm_available) {
               return fetchJSON(`${API_BASE}/risk-summary`, { 
                 method: "POST", 
                 headers: { "Content-Type": "application/json" },
@@ -1441,7 +1441,7 @@ Please explain in 3-4 simple sentences what changed, why the risk increased or d
         <section className="section">
           {!llmStatus.available ? (
             <div className="prototype-notice" style={{ borderColor: 'var(--error)' }}>
-              <strong>LLM Offline:</strong> Ollama is not running or no models are installed. Please ensure Ollama is installed and run <code>ollama pull llama3.2:1b</code> in a terminal.
+              <strong>LLM Offline:</strong> The Groq API is not reachable or XAI_API_KEY is not set. Please ensure your <code>.env</code> file contains a valid <code>XAI_API_KEY</code> and you have internet connectivity.
             </div>
           ) : (
             <div className="chat-container">

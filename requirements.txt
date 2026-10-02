@@ -9,3 +9,5 @@ shap
 matplotlib
 joblib
 requests
+openai
+python-dotenv

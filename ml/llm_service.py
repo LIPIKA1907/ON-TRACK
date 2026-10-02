@@ -1,43 +1,44 @@
 """
-OnTrack AI — Local LLM Service (Ollama)
+OnTrack AI — LLM Service (Groq)
 Smart India Hackathon 2026 | Problem Statement: SIH26103
 
-Provides local, offline LLM inference via Ollama for:
+Provides LLM inference via the Groq API for:
 - Natural-language project risk summaries
 - Context-aware recommendations
 - Interactive project Q&A
 
-Uses the Ollama REST API at http://localhost:11434
+Uses the OpenAI-compatible Groq API at https://api.groq.com/openai/v1
 """
 
-import json
 import logging
-import urllib.request
-import urllib.error
+import os
 from typing import Any, Dict, List, Optional
+
+from dotenv import load_dotenv
+from openai import OpenAI, APIError, APIConnectionError, AuthenticationError
+
+load_dotenv()
 
 logger = logging.getLogger("ontrack.llm")
 
-OLLAMA_BASE_URL = "http://localhost:11434"
+XAI_API_KEY = os.getenv("XAI_API_KEY", "")
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_MODEL = "qwen/qwen3.8-27b"
 
-# Preferred models in order of preference (smallest first for faster inference)
-PREFERRED_MODELS = [
-    "llama3.2:1b",
-    "llama3.2:3b",
-    "llama3.2",
-    "llama3.1:8b",
-    "llama3.1",
-    "llama3:8b",
-    "llama3",
-    "mistral",
-    "phi3",
-    "gemma2:2b",
-    "gemma2",
-    "qwen2.5:1.5b",
-    "qwen2.5:3b",
-    "qwen2.5",
-    "tinyllama",
-]
+# Build the OpenAI client once (pointed at Groq)
+_client: Optional[OpenAI] = None
+
+
+def _get_client() -> Optional[OpenAI]:
+    """Lazily initialise and return the OpenAI client for Groq."""
+    global _client
+    if _client is not None:
+        return _client
+    if not XAI_API_KEY:
+        logger.warning("XAI_API_KEY is not set — LLM features will be unavailable.")
+        return None
+    _client = OpenAI(api_key=XAI_API_KEY, base_url=GROQ_BASE_URL)
+    return _client
 
 
 SYSTEM_PROMPT = """You are OnTrack AI, an expert AI assistant for infrastructure project monitoring and risk analysis for the Government of India.
@@ -55,71 +56,23 @@ CRITICAL RULES:
 """
 
 
-def _ollama_request(endpoint: str, payload: dict, timeout: int = 60) -> Optional[dict]:
-    """Make a request to the Ollama REST API."""
-    url = f"{OLLAMA_BASE_URL}{endpoint}"
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=data, method="POST")
-    req.add_header("Content-Type", "application/json")
-    try:
-        resp = urllib.request.urlopen(req, timeout=timeout)
-        return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.URLError as e:
-        logger.warning(f"Ollama request failed: {e}")
-        return None
-    except Exception as e:
-        logger.warning(f"Ollama request error: {e}")
-        return None
-
-
-def _ollama_get(endpoint: str, timeout: int = 10) -> Optional[dict]:
-    """Make a GET request to the Ollama REST API."""
-    url = f"{OLLAMA_BASE_URL}{endpoint}"
-    req = urllib.request.Request(url, method="GET")
-    try:
-        resp = urllib.request.urlopen(req, timeout=timeout)
-        return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.URLError as e:
-        logger.warning(f"Ollama GET failed: {e}")
-        return None
-    except Exception as e:
-        logger.warning(f"Ollama GET error: {e}")
-        return None
-
-
-def is_ollama_running() -> bool:
-    """Check if Ollama server is running."""
-    try:
-        url = f"{OLLAMA_BASE_URL}/api/tags"
-        req = urllib.request.Request(url, method="GET")
-        resp = urllib.request.urlopen(req, timeout=5)
-        return resp.getcode() == 200
-    except Exception:
-        return False
+def is_llm_available() -> bool:
+    """Check if the Groq LLM service is configured (API key present)."""
+    return bool(XAI_API_KEY)
 
 
 def get_available_models() -> List[str]:
-    """Get list of models available in Ollama."""
-    resp = _ollama_get("/api/tags")
-    if resp and "models" in resp:
-        return [m["name"] for m in resp["models"]]
+    """Get list of models available via the Groq API."""
+    if XAI_API_KEY:
+        return [GROQ_MODEL]
     return []
 
 
 def get_active_model() -> Optional[str]:
-    """Find the best available model from the preferred list."""
-    available = get_available_models()
-    if not available:
+    """Return the active Groq model name."""
+    if not XAI_API_KEY:
         return None
-
-    # Check preferred models first
-    for preferred in PREFERRED_MODELS:
-        for avail in available:
-            if avail == preferred or avail.startswith(preferred.split(":")[0]):
-                return avail
-
-    # Fallback to first available model
-    return available[0] if available else None
+    return GROQ_MODEL
 
 
 def format_project_context(project: Dict[str, Any], risk_data: Optional[Dict] = None, explain_data: Optional[Dict] = None) -> str:
@@ -194,29 +147,23 @@ def chat(
     model: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Send a chat message to the local Ollama LLM with optional project context.
+    Send a chat message to the Groq LLM with optional project context.
 
     Returns:
         Dict with 'response', 'model', 'success', and optional 'error' keys.
     """
-    if not is_ollama_running():
+    client = _get_client()
+    if client is None:
         return {
             "success": False,
-            "error": "Ollama is not running. Please start Ollama first (run 'ollama serve' in a terminal).",
+            "error": "Groq LLM is not configured. Please set XAI_API_KEY in the .env file.",
             "response": None,
             "model": None,
         }
 
     # Resolve model
     if not model:
-        model = get_active_model()
-    if not model:
-        return {
-            "success": False,
-            "error": "No LLM models found. Please pull a model first (e.g., 'ollama pull llama3.2:1b').",
-            "response": None,
-            "model": None,
-        }
+        model = GROQ_MODEL
 
     # Build messages
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -237,34 +184,54 @@ def chat(
     # Add current message
     messages.append({"role": "user", "content": message})
 
-    # Call Ollama
-    payload = {
-        "model": model,
-        "messages": messages,
-        "stream": False,
-        "options": {
-            "temperature": 0.2,
-            "top_p": 0.9,
-            "num_predict": 256,
-        },
-    }
-
-    resp = _ollama_request("/api/chat", payload, timeout=120)
-
-    if resp is None:
+    # Call Groq via OpenAI-compatible SDK
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            stream=False,
+            temperature=0.2,
+            top_p=0.9,
+            max_tokens=256,
+        )
+        content = response.choices[0].message.content or ""
+        return {
+            "success": True,
+            "response": content,
+            "model": model,
+        }
+    except AuthenticationError:
+        logger.warning("Groq API authentication failed — check XAI_API_KEY.")
         return {
             "success": False,
-            "error": "Failed to get response from Ollama. Is the model loaded?",
+            "error": "Groq API authentication failed. Please verify your XAI_API_KEY.",
             "response": None,
             "model": model,
         }
-
-    return {
-        "success": True,
-        "response": resp.get("message", {}).get("content", ""),
-        "model": model,
-        "total_duration_ms": resp.get("total_duration", 0) // 1_000_000,
-    }
+    except APIConnectionError as e:
+        logger.warning(f"Groq API connection error: {e}")
+        return {
+            "success": False,
+            "error": "Failed to connect to the Groq API. Check your internet connection.",
+            "response": None,
+            "model": model,
+        }
+    except APIError as e:
+        logger.warning(f"Groq API error: {e}")
+        return {
+            "success": False,
+            "error": f"Groq API error: {e.message}",
+            "response": None,
+            "model": model,
+        }
+    except Exception as e:
+        logger.warning(f"Groq request error: {e}")
+        return {
+            "success": False,
+            "error": f"Failed to get response from Groq: {e}",
+            "response": None,
+            "model": model,
+        }
 
 
 def generate_risk_summary(
@@ -293,13 +260,14 @@ def generate_risk_summary(
 
 def get_llm_status() -> Dict[str, Any]:
     """Get the current status of the LLM service."""
-    running = is_ollama_running()
+    running = is_llm_available()
     models = get_available_models() if running else []
     active = get_active_model() if running else None
 
     return {
-        "ollama_running": running,
+        "llm_available": running,
         "available_models": models,
         "active_model": active,
-        "ollama_url": OLLAMA_BASE_URL,
+        "llm_provider": "Groq",
+        "llm_base_url": GROQ_BASE_URL,
     }

@@ -56,8 +56,8 @@ OnTrack AI is an offline-first, full-stack AI platform designed for the Ministry
 *   **Re-run logic:** The frontend calculates EVM magnitudes locally and sends the manipulated variables via a REST POST to `/what-if`, where the backend runs `predict_project_risk()` (in `what_if.py`) through the real XGBoost artifacts and returns updated probability deltas.
 
 ## 7. AI Chat / LLM
-*   **Provider:** Ollama (Local REST API running at `http://localhost:11434`).
-*   **Models:** Checks a preferred fallback list (`llama3.2:1b`, `llama3.2:3b`, `llama3.1:8b`, `mistral`, `gemma2`, etc.) and picks the first available.
+*   **Provider:** xAI Grok API (OpenAI-compatible endpoint at `https://api.x.ai/v1`).
+*   **Model:** `grok-3-mini` — fast, cost-effective model accessed via API key (`XAI_API_KEY` stored in `.env`).
 *   **Retrieval Method:** **NO vector store or embeddings are used.** Information is injected dynamically by serializing the active project's metrics into a structured string block (`format_project_context`) and attaching it to the prompt.
 *   **Constraints:** The system prompt explicitly commands the LLM to provide 1-2 line greetings without dumping data, answer *only* what is asked, and explicitly forbids inventing numbers.
 
@@ -68,7 +68,7 @@ OnTrack AI is an offline-first, full-stack AI platform designed for the Ministry
     *   `GET /health`: System & LLM status.
     *   `GET /projects`: Fetches the PAIMANA project list.
     *   `POST /what-if`: Executes scenario prediction through models.
-    *   `POST /chat`: Interacts with Ollama.
+    *   `POST /chat`: Interacts with xAI Grok API.
 *   **Storage:** Local CSV files (`data/projects.csv`, `data/paimana_normalized.csv`). No SQL/NoSQL databases used.
 *   **Architecture Diagram:**
     ```text
@@ -78,7 +78,7 @@ OnTrack AI is an offline-first, full-stack AI platform designed for the Ministry
     [React + Vite UI] <====(FastAPI REST endpoints)==== [Python Backend]
          |                                                    |
          v                                                    v
-    [Local EVM Calc]                                    [Local Ollama]
+    [Local EVM Calc]                                    [xAI Grok API]
     ```
 
 ## 9. Open-Source and Offline Compliance
@@ -86,14 +86,14 @@ OnTrack AI is an offline-first, full-stack AI platform designed for the Ministry
 *   **Scikit-Learn:** BSD (Open Source)
 *   **FastAPI:** MIT (Open Source)
 *   **React:** MIT (Open Source)
-*   **Ollama:** MIT (Open Source)
-*   **Compliance:** Fully offline. Absolutely no internet connection is required to run predictions, view dashboard metrics, execute What-If scenarios, or chat with the AI (so long as Ollama and models are downloaded).
+*   **OpenAI SDK:** MIT (Open Source) — used as the client for the xAI Grok API.
+*   **Compliance:** Predictions, dashboard metrics, and What-If scenarios work fully offline. The AI chat and risk summary features require internet connectivity to reach the xAI Grok API.
 
 ## 10. How to Run
-1.  **Environment Variables:** None explicitly required (Optional: `VITE_API_BASE_URL`).
+1.  **Environment Variables:** `XAI_API_KEY` must be set in `.env` for AI chat/summary features (Optional: `VITE_API_BASE_URL`).
 2.  **Setup Command:** Execute `setup_ontrack.bat` (Creates Python `.venv`, installs pip requirements, installs `npm` packages).
 3.  **Run Command:** Execute `start_ontrack.bat` (Spins up FastAPI on port 8001 and Vite on port 5173 concurrently).
-4.  **Hardware Requirements:** 8GB+ RAM. CPU is sufficient for the application, though a GPU is highly recommended for running Ollama smoothly.
+4.  **Hardware Requirements:** 8GB+ RAM. CPU is sufficient. Internet connectivity required for Grok AI features.
 
 ## 11. Results and Impact
 *   **Total Evaluated:** 1,731 Central Sector Infrastructure Projects.
@@ -117,7 +117,7 @@ OnTrack AI is an offline-first, full-stack AI platform designed for the Ministry
 5.  **Machine Learning:** XGBoost models (94.8% accuracy on implementation risk).
 6.  **Explainability:** SHAP-driven transparency for risk drivers.
 7.  **What-If Simulator:** Real-time EVM + ML scenario modeling.
-8.  **AI Assistant:** Local Ollama integration for secure, offline Q&A.
+8.  **AI Assistant:** xAI Grok integration for intelligent, context-aware Q&A.
 9.  **Tech Stack:** React, FastAPI, XGBoost, completely open-source.
 10. **Offline Compliance:** 100% functional without internet (Data Privacy).
 11. **Example Case Study:** Project PAIMANA-618477 (High Risk identification).
@@ -126,8 +126,8 @@ OnTrack AI is an offline-first, full-stack AI platform designed for the Ministry
 ### Top 10 Strongest Facts for Judges
 1.  **1,731 official government records** processed and normalized.
 2.  **94.8% accuracy** in predicting project implementation risk using XGBoost.
-3.  **100% Offline & Secure:** LLM and models run locally, ensuring data privacy.
-4.  **Zero paid APIs used:** Completely open-source stack (React, FastAPI, Ollama).
+3.  **Core ML is Offline & Secure:** Predictions, SHAP, benchmarking, and What-If run locally ensuring data privacy.
+4.  **Modern AI Stack:** React, FastAPI, XGBoost, xAI Grok — production-grade and scalable.
 5.  **17 unique features** engineered from MoSPI data.
 6.  **Live What-If Simulator** mapping ML probabilities to EVM metrics instantly.
 7.  **SHAP Integration** providing mathematically sound explainability for every prediction.
@@ -145,7 +145,7 @@ OnTrack AI is an offline-first, full-stack AI platform designed for the Ministry
 4.  **Q: Is your What-If magnitude calculation ML-based?**
     *A:* The *probability* is ML-based. The magnitude (Rs Cr / Months) is calculated using deterministic Earned Value Management (EVM) formulas to ensure strict financial accuracy.
 5.  **Q: What if the internet drops?**
-    *A:* The entire stack, including the LLM (via Ollama), runs locally on localhost. It is completely unaffected.
+    *A:* All ML predictions, dashboards, SHAP explanations, and What-If scenarios run locally and are unaffected. Only the AI chat and risk summary features (powered by the xAI Grok API) require connectivity.
 6.  **Q: How did you validate your models?**
     *A:* 80/20 train-test split evaluating Precision, Recall, F1, and ROC-AUC to handle class imbalances.
 7.  **Q: Where does the data come from?**
