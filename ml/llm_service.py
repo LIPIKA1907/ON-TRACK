@@ -34,10 +34,11 @@ def _get_client() -> Optional[OpenAI]:
     global _client
     if _client is not None:
         return _client
-    if not XAI_API_KEY:
+    key = os.getenv("XAI_API_KEY") or XAI_API_KEY
+    if not key:
         logger.warning("XAI_API_KEY is not set — LLM features will be unavailable.")
         return None
-    _client = OpenAI(api_key=XAI_API_KEY, base_url=GROQ_BASE_URL)
+    _client = OpenAI(api_key=key, base_url=GROQ_BASE_URL)
     return _client
 
 
@@ -58,7 +59,7 @@ CRITICAL RULES:
 
 def is_llm_available() -> bool:
     """Check if the Groq LLM service is configured (API key present)."""
-    return bool(XAI_API_KEY)
+    return bool(os.getenv("XAI_API_KEY") or XAI_API_KEY)
 
 
 def get_available_models() -> List[str]:
