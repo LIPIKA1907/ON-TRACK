@@ -21,7 +21,12 @@ load_dotenv()
 
 logger = logging.getLogger("ontrack.llm")
 
-XAI_API_KEY = os.getenv("XAI_API_KEY", "")
+def _get_api_key() -> str:
+    """Retrieve API key from either XAI_API_KEY or GROQ_API_KEY."""
+    return os.getenv("XAI_API_KEY") or os.getenv("GROQ_API_KEY") or ""
+
+
+XAI_API_KEY = _get_api_key()
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 GROQ_MODEL = "qwen/qwen3.8-27b"
 
@@ -34,9 +39,9 @@ def _get_client() -> Optional[OpenAI]:
     global _client
     if _client is not None:
         return _client
-    key = os.getenv("XAI_API_KEY") or XAI_API_KEY
+    key = _get_api_key()
     if not key:
-        logger.warning("XAI_API_KEY is not set — LLM features will be unavailable.")
+        logger.warning("XAI_API_KEY or GROQ_API_KEY is not set — LLM features will be unavailable.")
         return None
     _client = OpenAI(api_key=key, base_url=GROQ_BASE_URL)
     return _client
@@ -59,7 +64,7 @@ CRITICAL RULES:
 
 def is_llm_available() -> bool:
     """Check if the Groq LLM service is configured (API key present)."""
-    return bool(os.getenv("XAI_API_KEY") or XAI_API_KEY)
+    return bool(_get_api_key())
 
 
 def get_available_models() -> List[str]:
